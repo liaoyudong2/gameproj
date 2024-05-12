@@ -2,6 +2,7 @@
 // Created by liao on 2024/5/3.
 //
 #include "network/TcpClient.h"
+#include "network/protocol/MbedTLS.h"
 
 namespace Lcc {
     TcpClient::TcpClient(ClientImplement *impl) : _status(Status::None),
@@ -26,17 +27,30 @@ namespace Lcc {
         }
     }
 
+    void TcpClient::Enable(ProtocolPluginCreator *creator) {
+        if (creator) {
+            _creatorVec.emplace_back(creator);
+        }
+    }
+
     void TcpClient::Write(const char *buf, unsigned int size) {
         if (_status == Status::Connected && _tcpStream) {
             _tcpStream->Write(buf, size);
         }
     }
 
+    unsigned int TcpClient::GetSession() const {
+        if (_tcpStream) {
+            return _tcpStream->GetSession();
+        }
+        return 0;
+    }
+
     void TcpClient::AddressParse() {
         if (_status == Status::Address) {
             _tcpStream = new TcpStream(reinterpret_cast<StreamImplement *>(this));
             if (!_tcpStream->Init()) {
-                return;
+                return AddressConnectFail(_tcpStream->LastErrCode());
             }
             auto req = static_cast<uv_getaddrinfo_t *>(::malloc(sizeof(uv_getaddrinfo_t)));
             uv_handle_set_data(reinterpret_cast<uv_handle_t *>(req), this);
@@ -71,7 +85,7 @@ namespace Lcc {
 
     void TcpClient::AddressConnectFail(int status) {
         _status = Status::ConnectFail;
-        _implement->IClientReport(_tcpStream->GetSession(), false, uv_strerror(status));
+        _implement->IClientReport(_tcpStream->GetSession(), false, status != 0 ? uv_strerror(status) : nullptr);
         _tcpStream->Shutdown();
     }
 
@@ -100,10 +114,14 @@ namespace Lcc {
     void TcpClient::IStreamAfterClose(unsigned int session) {
         delete _tcpStream;
         _tcpStream = nullptr;
+        _handle = nullptr;
+        for (auto creator: _creatorVec) {
+            creator->ICreatorRelease();
+        }
+        _creatorVec.clear();
         if (_status == Status::Connected) {
             _implement->IClientAfterDisconnect(session);
         }
-        _handle = nullptr;
         _status = Status::None;
     }
 
@@ -138,6 +156,11 @@ namespace Lcc {
             self->_status = Status::Connected;
             if (!self->_tcpStream->Startup()) {
                 self->AddressConnectFail(self->_tcpStream->LastErrCode());
+            }
+            // TODO WebSocket, WebSockets, MbedTLS
+            for (auto creator: self->_creatorVec) {
+                self->_tcpStream->EnableProtocolPlugin(
+                    creator->ICreatorAlloc(reinterpret_cast<ProtocolImplement *>(self->_tcpStream)));
             }
         }
     }

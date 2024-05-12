@@ -36,11 +36,23 @@ namespace Lcc {
         void Shutdown();
 
         /**
+         * 启用协议插件支持
+         * @param creator 协议插件创造器
+         */
+        void Enable(ProtocolPluginCreator *creator);
+
+        /**
          * 向流写数据
          * @param buf 数据流
          * @param size 数据长度
          */
         void Write(const char *buf, unsigned int size);
+
+        /**
+         * 获取会话id
+         * @return 会话id
+         */
+        unsigned int GetSession() const;
 
     protected:
         /**
@@ -82,7 +94,8 @@ namespace Lcc {
         ClientImplement *_implement;
 
     private:
-        HostAddress _hostAddress;
+        Utils::HostAddress _hostAddress;
+        std::vector<ProtocolPluginCreator *> _creatorVec;
     };
 }
 

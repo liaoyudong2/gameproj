@@ -6,7 +6,7 @@
 
 uv_loop_t *g_loop = nullptr;
 
-class TcpClient : public Lcc::TcpClient, public Lcc::ClientImplement {
+class TcpClient final : public Lcc::TcpClient, public Lcc::ClientImplement {
 public:
     explicit TcpClient() : Lcc::TcpClient(this) {
     }
@@ -28,6 +28,7 @@ public:
 
     inline void IClientReceive(unsigned int session, const char *buf, unsigned int size) override {
         std::cout << "IClientReceive: [" << session << "] 接收消息, 长度[" << size << "]" << std::endl;
+        Shutdown();
     }
 
     inline void IClientBeforeDisconnect(unsigned int session, int err, const char *errMsg) override {
@@ -49,7 +50,8 @@ int main(int argc, char *argv[]) {
     g_loop = static_cast<uv_loop_t *>(::malloc(sizeof(uv_loop_t)));
     uv_loop_init(g_loop);
 
-    client.Connect("tcp://192.168.1.74:8080");
+    // client.Connect("tcp://192.168.1.74:8081");
+    client.Connect("tcp://127.0.0.1:8081");
 
     uv_run(g_loop, UV_RUN_DEFAULT);
     uv_loop_close(g_loop);
