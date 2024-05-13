@@ -41,8 +41,9 @@ namespace Lcc {
          * 协议插件读取数据触发
          * @param buf 数据流
          * @param size 数据大小
+         * @return 是否读取成功
          */
-        virtual void IProtocolPluginRead(const char *buf, unsigned int size) = 0;
+        virtual bool IProtocolPluginRead(const char *buf, unsigned int size) = 0;
 
         /**
          * 协议插件写数据触发

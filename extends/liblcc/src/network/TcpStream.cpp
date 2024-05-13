@@ -157,7 +157,10 @@ namespace Lcc {
     void TcpStream::IProtocolRead(ProtocolLevel streamLevel, const char *buf, unsigned int size) {
         auto plugin = GetLevelPlugin(streamLevel);
         if (plugin) {
-            plugin->IProtocolPluginRead(buf, size);
+            if (!plugin->IProtocolPluginRead(buf, size)) {
+                _error = plugin->IProtocolLastError();
+                _errdesc = plugin->IProtocolLastErrDesc();
+            }
         } else {
             _implement->IStreamReceive(_streamHandle.tcpSession, buf, size);
         }
@@ -192,6 +195,8 @@ namespace Lcc {
     }
 
     void TcpStream::UvWriteCallback(uv_write_t *req, int status) {
+        auto *ubuf = reinterpret_cast<uv_buf_t *>(req + 1);
+        ::free(ubuf->base);
         ::free(req);
     }
 

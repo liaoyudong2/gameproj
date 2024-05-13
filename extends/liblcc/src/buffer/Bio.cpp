@@ -52,7 +52,7 @@ namespace Lcc {
         unsigned int l = std::min(size, _size - (_out & (_size - 1)));
         memcpy(out, _chunk + (_out & (_size - 1)), l);
         memcpy(reinterpret_cast<unsigned char *>(out + l), _chunk, size - l);
-        _out += _size;
+        _out += size;
         return size;
     }
 
@@ -64,7 +64,7 @@ namespace Lcc {
                 return 0;
             }
             auto *chunk = static_cast<unsigned char *>(::realloc(_chunk, l));
-            if (!_chunk) {
+            if (!chunk) {
                 return 0;
             }
             _size = l;

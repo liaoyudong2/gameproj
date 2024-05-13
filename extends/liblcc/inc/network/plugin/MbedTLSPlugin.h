@@ -26,7 +26,7 @@ namespace Lcc {
 
         bool IProtocolPluginOpen() override;
 
-        void IProtocolPluginRead(const char *buf, unsigned int size) override;
+        bool IProtocolPluginRead(const char *buf, unsigned int size) override;
 
         void IProtocolPluginWrite(const char *buf, unsigned int size) override;
 

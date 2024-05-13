@@ -32,6 +32,7 @@ namespace Lcc {
                     }
                     default: break;
                 }
+                mbedtls_psa_crypto_free();
                 _mode = Mode::None;
             }
         }
@@ -47,7 +48,7 @@ namespace Lcc {
             return _errorstr.c_str();
         }
 
-        mbedtls_ssl_context * MbedTLS::GetSSLContext() {
+        mbedtls_ssl_context *MbedTLS::GetSSLContext() {
             return &_sslCtx;
         }
 
@@ -56,6 +57,7 @@ namespace Lcc {
                 if (_mode == Mode::ClientMode && _caroot) {
                     return mbedtls_ssl_get_verify_result(&_sslCtx) == 0;
                 }
+                return true;
             }
             return false;
         }
@@ -89,6 +91,7 @@ namespace Lcc {
             if (!Enabled() && host) {
                 do {
                     _errorstr.clear();
+                    psa_crypto_init();
                     mbedtls_pk_init(&_pkCtx);
                     mbedtls_ssl_init(&_sslCtx);
                     mbedtls_x509_crt_init(&_x509Crt);

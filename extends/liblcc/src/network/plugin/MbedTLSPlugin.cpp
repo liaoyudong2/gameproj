@@ -24,7 +24,7 @@ namespace Lcc {
         return _error;
     }
 
-    const char * MbedTLSPlugin::IProtocolLastErrDesc() {
+    const char *MbedTLSPlugin::IProtocolLastErrDesc() {
         if (_error) {
             mbedtls_strerror(_error, const_cast<char *>(_errorstr.data()), _errorstr.capacity());
         }
@@ -43,16 +43,18 @@ namespace Lcc {
         return true;
     }
 
-    void MbedTLSPlugin::IProtocolPluginRead(const char *buf, unsigned int size) {
+    bool MbedTLSPlugin::IProtocolPluginRead(const char *buf, unsigned int size) {
         _bufferIn.Write(buf, size);
         mbedtls_ssl_context *ctx = _mbedtls.GetSSLContext();
         if (ctx->private_state != MBEDTLS_SSL_HANDSHAKE_OVER) {
             if (!Handshake()) {
-                return ImplementClose();
+                ImplementClose();
+                return false;
             }
             if (ctx->private_state == MBEDTLS_SSL_HANDSHAKE_OVER) {
                 if (!_mbedtls.Verify()) {
-                    return ImplementClose();
+                    ImplementClose();
+                    return false;
                 }
                 ImplementOpen();
             }
@@ -63,11 +65,13 @@ namespace Lcc {
                                          _buffer.capacity());
                 if (r <= 0 && r != MBEDTLS_ERR_SSL_WANT_READ && r != MBEDTLS_ERR_SSL_WANT_WRITE) {
                     _error = r;
-                    return ImplementClose();
+                    ImplementClose();
+                    return false;
                 }
                 ImplementReceive(_buffer.data(), r);
             }
         }
+        return true;
     }
 
     void MbedTLSPlugin::IProtocolPluginWrite(const char *buf, unsigned int size) {
@@ -137,7 +141,7 @@ namespace Lcc {
 
 
     int MbedTLSPlugin::MbedTLSRecvCallback(void *ctx, unsigned char *buf, size_t size) {
-        auto plugin = reinterpret_cast<MbedTLSPlugin *>(ctx);
+        auto plugin = static_cast<MbedTLSPlugin *>(ctx);
         int r = plugin->_bufferIn.Read(reinterpret_cast<char *>(buf), size);
         if (r > 0) {
             return r;
@@ -146,7 +150,7 @@ namespace Lcc {
     }
 
     int MbedTLSPlugin::MbedTLSSendCallback(void *ctx, const unsigned char *buf, size_t size) {
-        auto plugin = reinterpret_cast<MbedTLSPlugin *>(ctx);
+        auto plugin = static_cast<MbedTLSPlugin *>(ctx);
         int r = plugin->_bufferOut.Write(reinterpret_cast<const char *>(buf), size);
         if (r > 0) {
             return r;
