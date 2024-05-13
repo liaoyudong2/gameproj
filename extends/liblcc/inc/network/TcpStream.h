@@ -112,6 +112,7 @@ namespace Lcc {
         StreamImplement *_implement;
 
     private:
+        std::string _errdesc;
         std::string _allocBuffer;
         StreamHandle _streamHandle{};
         std::vector<ProtocolPlugin *> _protocolPluginVec;

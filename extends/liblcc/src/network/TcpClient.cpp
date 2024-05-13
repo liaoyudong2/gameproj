@@ -2,7 +2,7 @@
 // Created by liao on 2024/5/3.
 //
 #include "network/TcpClient.h"
-#include "network/protocol/MbedTLS.h"
+#include "network/plugin/MbedTLSPlugin.h"
 
 namespace Lcc {
     TcpClient::TcpClient(ClientImplement *impl) : _status(Status::None),
@@ -154,13 +154,18 @@ namespace Lcc {
             self->AddressConnectFail(status);
         } else {
             self->_status = Status::Connected;
-            if (!self->_tcpStream->Startup()) {
-                self->AddressConnectFail(self->_tcpStream->LastErrCode());
+            // TODO WebSocket
+            if (self->_hostAddress.ssl) {
+                auto creator = new MbedTLSPluginCreator;
+                creator->InitializeClientMode(self->_hostAddress.host, nullptr);
+                self->_creatorVec.emplace_back(creator);
             }
-            // TODO WebSocket, WebSockets, MbedTLS
             for (auto creator: self->_creatorVec) {
                 self->_tcpStream->EnableProtocolPlugin(
                     creator->ICreatorAlloc(reinterpret_cast<ProtocolImplement *>(self->_tcpStream)));
+            }
+            if (!self->_tcpStream->Startup()) {
+                self->AddressConnectFail(self->_tcpStream->LastErrCode());
             }
         }
     }

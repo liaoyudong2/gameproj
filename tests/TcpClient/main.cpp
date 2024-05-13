@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
     uv_loop_init(g_loop);
 
     // client.Connect("tcp://192.168.1.74:8081");
-    client.Connect("tcp://127.0.0.1:8081");
+    client.Connect("https://www.baidu.com");
 
     uv_run(g_loop, UV_RUN_DEFAULT);
     uv_loop_close(g_loop);

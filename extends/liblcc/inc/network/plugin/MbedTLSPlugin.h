@@ -20,6 +20,9 @@ namespace Lcc {
         Protocol::MbedTLS &GetMbedTLS();
 
     protected:
+        int IProtocolLastError() override;
+
+        const char *IProtocolLastErrDesc() override;
 
         bool IProtocolPluginOpen() override;
 
@@ -33,24 +36,49 @@ namespace Lcc {
 
     protected:
         bool Handshake();
+
         void WantFlush();
 
     protected:
         void ImplementOpen();
+
         void ImplementClose();
+
         void ImplementReceive(const char *buf, unsigned int size);
 
     protected:
         static int MbedTLSRecvCallback(void *ctx, unsigned char *buf, size_t size);
+
         static int MbedTLSSendCallback(void *ctx, const unsigned char *buf, size_t size);
 
     private:
         int _error;
         std::string _buffer;
+        std::string _errorstr;
         BufferBio _bufferIn;
         BufferBio _bufferOut;
         Protocol::MbedTLS _mbedtls;
+    };
 
+    class MbedTLSPluginCreator : public ProtocolPluginCreator {
+    public:
+        MbedTLSPluginCreator();
+
+        ~MbedTLSPluginCreator() override;
+
+        bool InitializeClientMode(const char *host, const char *caroot);
+
+        bool InitializeServerMode(const char *cert, const char *key, const char *password);
+
+    protected:
+        void ICreatorRelease() override;
+
+        ProtocolPlugin *ICreatorAlloc(ProtocolImplement *impl) override;
+
+    private:
+        std::string _host;
+        std::string _caroot;
+        Protocol::MbedTLS *_mbedtls;
     };
 }
 

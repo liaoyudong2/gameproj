@@ -42,7 +42,7 @@ namespace Lcc {
 
         const char *MbedTLS::GetErrorDesc() const {
             if (_error != 0) {
-                mbedtls_strerror(_error, const_cast<char *>(_errorstr.data()), _errorstr.size());
+                mbedtls_strerror(_error, const_cast<char *>(_errorstr.data()), _errorstr.capacity());
             }
             return _errorstr.c_str();
         }

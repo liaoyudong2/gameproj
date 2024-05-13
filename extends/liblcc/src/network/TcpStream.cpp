@@ -36,6 +36,7 @@ namespace Lcc {
             IProtocolOpen(ProtocolLevel::Stream);
             return true;
         }
+        _errdesc = uv_strerror(_error);
         return false;
     }
 
@@ -122,7 +123,10 @@ namespace Lcc {
     void TcpStream::IProtocolOpen(ProtocolLevel streamLevel) {
         auto plugin = GetLevelPlugin(streamLevel);
         if (plugin) {
-            plugin->IProtocolPluginOpen();
+            if (!plugin->IProtocolPluginOpen()) {
+                _error = plugin->IProtocolLastError();
+                _errdesc = plugin->IProtocolLastErrDesc();
+            }
         } else {
             _implement->IStreamOpen(_streamHandle.tcpSession);
         }
@@ -182,6 +186,7 @@ namespace Lcc {
             // 可能为 0，这并不表示错误或 EOF。这相当于EAGAIN或EWOULDBLOCK
         } else {
             self->_error = static_cast<int>(readLen);
+            self->_errdesc = uv_strerror(self->_error);
             self->IProtocolClose(ProtocolLevel::Application);
         }
     }
@@ -195,7 +200,7 @@ namespace Lcc {
         if (self->_streamHandle.IsActive()) {
             uv_close(reinterpret_cast<uv_handle_t *>(&self->_streamHandle.tcpHandle), TcpStream::UvCloseCallback);
             self->_implement->IStreamBeforeClose(self->_streamHandle.tcpSession, self->_error,
-                                                 self->_error != 0 ? uv_strerror(self->_error) : nullptr);
+                                                 self->_errdesc.empty() ? nullptr : self->_errdesc.c_str());
         }
         ::free(req);
     }

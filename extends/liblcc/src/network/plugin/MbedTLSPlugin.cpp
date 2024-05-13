@@ -8,6 +8,8 @@ namespace Lcc {
                                                             _error(0) {
         _buffer.resize(0x4000); // 16384
         _buffer.clear();
+        _errorstr.resize(512);
+        _errorstr.clear();
     }
 
     MbedTLSPlugin::~MbedTLSPlugin() {
@@ -18,10 +20,25 @@ namespace Lcc {
         return _mbedtls;
     }
 
+    int MbedTLSPlugin::IProtocolLastError() {
+        return _error;
+    }
+
+    const char * MbedTLSPlugin::IProtocolLastErrDesc() {
+        if (_error) {
+            mbedtls_strerror(_error, const_cast<char *>(_errorstr.data()), _errorstr.capacity());
+        }
+        return _errorstr.c_str();
+    }
+
     bool MbedTLSPlugin::IProtocolPluginOpen() {
-        mbedtls_ssl_set_bio(_mbedtls.GetSSLContext(), this, MbedTLSPlugin::MbedTLSSendCallback, MbedTLSPlugin::MbedTLSRecvCallback, nullptr);
+        mbedtls_ssl_set_bio(_mbedtls.GetSSLContext(), this, MbedTLSPlugin::MbedTLSSendCallback,
+                            MbedTLSPlugin::MbedTLSRecvCallback, nullptr);
         if (_mbedtls.ClientMode()) {
-            return Handshake();
+            if (!Handshake()) {
+                ImplementClose();
+                return false;
+            }
         }
         return true;
     }
@@ -42,7 +59,8 @@ namespace Lcc {
         }
         if (ctx->private_state == MBEDTLS_SSL_HANDSHAKE_OVER) {
             while (_bufferIn.UsedSize() > 0) {
-                int r = mbedtls_ssl_read(ctx, reinterpret_cast<unsigned char *>(const_cast<char *>(_buffer.data())), _buffer.capacity());
+                int r = mbedtls_ssl_read(ctx, reinterpret_cast<unsigned char *>(const_cast<char *>(_buffer.data())),
+                                         _buffer.capacity());
                 if (r <= 0 && r != MBEDTLS_ERR_SSL_WANT_READ && r != MBEDTLS_ERR_SSL_WANT_WRITE) {
                     _error = r;
                     return ImplementClose();
@@ -134,5 +152,59 @@ namespace Lcc {
             return r;
         }
         return MBEDTLS_ERR_SSL_WANT_WRITE;
+    }
+
+    MbedTLSPluginCreator::MbedTLSPluginCreator(): _mbedtls(nullptr) {
+    }
+
+    MbedTLSPluginCreator::~MbedTLSPluginCreator() {
+        if (_mbedtls) {
+            _mbedtls->Release();
+            delete _mbedtls;
+        }
+    };
+
+    bool MbedTLSPluginCreator::InitializeClientMode(const char *host, const char *caroot) {
+        if (!host) {
+            return false;
+        }
+        _host.assign(host);
+        if (caroot) {
+            _caroot.assign(caroot);
+        }
+        return true;
+    }
+
+    bool MbedTLSPluginCreator::InitializeServerMode(const char *cert, const char *key, const char *password) {
+        if (!_mbedtls) {
+            _mbedtls = new Protocol::MbedTLS;
+            if (_mbedtls->InitializeForServer(cert, key, password)) {
+                return true;
+            }
+            _mbedtls->Release();
+            delete _mbedtls;
+            _mbedtls = nullptr;
+        }
+        return false;
+    }
+
+    void MbedTLSPluginCreator::ICreatorRelease() {
+        delete this;
+    }
+
+    ProtocolPlugin *MbedTLSPluginCreator::ICreatorAlloc(ProtocolImplement *impl) {
+        auto plugin = new MbedTLSPlugin(impl);
+        if (_mbedtls) {
+            if (plugin->GetMbedTLS().InitializeForSession(*_mbedtls)) {
+                return plugin;
+            }
+            _mbedtls->Release();
+        } else {
+            if (plugin->GetMbedTLS().InitializeForClient(_host.c_str(), _caroot.empty() ? nullptr : _caroot.c_str())) {
+                return plugin;
+            }
+        }
+        delete plugin;
+        return nullptr;
     }
 }

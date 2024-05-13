@@ -20,6 +20,18 @@ namespace Lcc {
 
     public:
         /**
+         * 返回错误码
+         * @return 错误码
+         */
+        virtual int IProtocolLastError() = 0;
+
+        /**
+         * 返回错误码描述
+         * @return 错误码信息
+         */
+        virtual const char *IProtocolLastErrDesc() = 0;
+
+        /**
          * 协议插件启动
          * @return 启动协议插件结果
          */
