@@ -44,6 +44,12 @@ namespace Lcc {
             const char *GetErrorDesc() const;
 
             /**
+             * 获取ssl句柄
+             * @return ssl句柄
+             */
+            mbedtls_ssl_context *GetSSLContext();
+
+            /**
              * 获取证书连接是否有效性
              * @return 返回校验结果
              */
@@ -54,6 +60,12 @@ namespace Lcc {
              * @return 是否已经初始化
              */
             bool Enabled() const;
+
+            /**
+             * 获取是否客户端模式
+             * @return 是否客户端模式
+             */
+            bool ClientMode() const;
 
             /**
              * 给server的session对象初始化证书信息

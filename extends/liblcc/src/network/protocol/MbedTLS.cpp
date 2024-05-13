@@ -47,6 +47,10 @@ namespace Lcc {
             return _errorstr.c_str();
         }
 
+        mbedtls_ssl_context * MbedTLS::GetSSLContext() {
+            return &_sslCtx;
+        }
+
         bool MbedTLS::Verify() const {
             if (Enabled()) {
                 if (_mode == Mode::ClientMode && _caroot) {
@@ -58,6 +62,10 @@ namespace Lcc {
 
         bool MbedTLS::Enabled() const {
             return _mode != Mode::None;
+        }
+
+        bool MbedTLS::ClientMode() const {
+            return _mode == Mode::ClientMode;
         }
 
         bool MbedTLS::InitializeForSession(const MbedTLS &ssl) {
