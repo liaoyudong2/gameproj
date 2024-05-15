@@ -118,12 +118,16 @@ namespace Lcc {
     }
 
     bool TcpServer::IStreamInit(StreamHandle &handle) {
-        while (++_isession) {
-            if (_sessionMap.find(_isession) == _sessionMap.end()) {
-                handle.tcpSession = _isession;
-                break;
+        unsigned int session = 0;
+        while (session == 0) {
+            while (++_isession) {
+                if (_sessionMap.find(_isession) == _sessionMap.end()) {
+                    session = _isession;
+                    break;
+                }
             }
         }
+        handle.tcpSession = session;
         uv_tcp_init(_handle->loop, &handle.tcpHandle);
         uv_accept(reinterpret_cast<uv_stream_t *>(_handle), reinterpret_cast<uv_stream_t *>(&handle.tcpHandle));
         return true;
@@ -187,11 +191,11 @@ namespace Lcc {
             auto sessionObject = new SessionObject;
             sessionObject->valid = false;
             sessionObject->stream = new TcpStream(reinterpret_cast<StreamImplement *>(self));
-            for (auto creator: self->_creatorVec) {
-                sessionObject->stream->EnableProtocolPlugin(
-                    creator->ICreatorAlloc(reinterpret_cast<ProtocolImplement *>(sessionObject->stream)));
-            }
             if (sessionObject->stream->Init()) {
+                for (auto creator: self->_creatorVec) {
+                    sessionObject->stream->EnableProtocolPlugin(
+                        creator->ICreatorAlloc(reinterpret_cast<ProtocolImplement *>(sessionObject->stream)));
+                }
                 self->_sessionMap[sessionObject->stream->GetSession()] = sessionObject;
                 if (!sessionObject->stream->Startup()) {
                     sessionObject->stream->Shutdown();
