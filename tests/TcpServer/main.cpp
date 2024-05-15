@@ -17,12 +17,12 @@ public:
     }
 
     void IServerListenReport(bool listened, int err, const char *errMsg) override {
+        Lcc::Utils::HostAddress address = GetListenAddress();
         if (listened) {
-            std::cout << "IServerReport: 监听成功" << std::endl;
-            // const char *request = "POST / HTTP/1.1\r\nconnection: keep-alive\r\nHost: www.baidu.com\r\nuser-agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36\r\ncontent-type: text/html\r\nContent-Length: 0\r\n\r\n";
-            // Write(request, strlen(request));
+            std::cout << "IServerReport: 监听地址[" << address.ip << ":" << address.port << "] 成功" << std::endl;
         } else {
-            std::cout << "IServerReport: 监听失败 [" << err << ":" << errMsg << "]" << std::endl;
+            std::cout << "IServerReport: 监听地址[" << address.ip << ":" << address.port << "] 失败 [" << err << ":" << errMsg
+                    << "]" << std::endl;
         }
     }
 
@@ -32,6 +32,9 @@ public:
 
     void IServerSessionOpen(unsigned int session) override {
         std::cout << "IServerSessionOpen:[" << session << "] 连接成功" << std::endl;
+        const char *request =
+                "POST / HTTP/1.1\r\nconnection: keep-alive\r\nHost: www.baidu.com\r\nuser-agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36\r\ncontent-type: text/html\r\nContent-Length: 0\r\n\r\n";
+        SessionWrite(session, request, strlen(request));
     }
 
     void IServerSessionReceive(unsigned int session, const char *buf, unsigned int size) override {

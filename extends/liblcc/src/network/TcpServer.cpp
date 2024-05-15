@@ -21,6 +21,51 @@ namespace Lcc {
         }
     }
 
+    void TcpServer::Shutdown() {
+        if (_handle && !uv_is_closing(reinterpret_cast<const uv_handle_t *>(_handle))) {
+            uv_close(reinterpret_cast<uv_handle_t *>(_handle), TcpServer::UvServerShutdownCallback);
+            ShutdownAllSessions();
+        }
+    }
+
+    void TcpServer::Enable(ProtocolPluginCreator *creator) {
+        if (creator) {
+            _creatorVec.emplace_back(creator);
+        }
+    }
+
+    void TcpServer::ShutdownAllSessions() const {
+        for (const auto it: _sessionMap) {
+            it.second->stream->Shutdown();
+        }
+    }
+
+    void TcpServer::ShutdownSession(unsigned int session) {
+        auto sessionStream = GetSessionStream(session);
+        if (sessionStream) {
+            sessionStream->Shutdown();
+        }
+    }
+
+    const Utils::HostAddress &TcpServer::GetListenAddress() const {
+        return _hostAddress;
+    }
+
+    TcpStream *TcpServer::GetSessionStream(unsigned int session) {
+        const auto sessionObject = GetSessionObject(session);
+        if (sessionObject && sessionObject->valid) {
+            return sessionObject->stream;
+        }
+        return nullptr;
+    }
+
+    void TcpServer::SessionWrite(unsigned int session, const char *buf, unsigned int size) {
+        const auto sessionStream = GetSessionStream(session);
+        if (sessionStream) {
+            sessionStream->Write(buf, size);
+        }
+    }
+
     void TcpServer::AddressParse() {
         if (_status == Status::Address) {
             _handle = static_cast<uv_tcp_t *>(::malloc(sizeof(uv_tcp_t)));
@@ -48,6 +93,7 @@ namespace Lcc {
                 err = uv_listen(reinterpret_cast<uv_stream_t *>(_handle), 128, TcpServer::UvNewSessionCallback);
                 if (err == 0) {
                     _status = Status::Listened;
+                    _implement->IServerListenReport(true, 0, nullptr);
                     return;
                 }
             }
@@ -58,18 +104,37 @@ namespace Lcc {
     void TcpServer::AddressListenFail(int status) {
         _error = status;
         _errdesc = uv_strerror(status);
+        _status = Status::ListenFail;
         _implement->IServerListenReport(false, status, _errdesc.c_str());
+        Shutdown();
+    }
+
+    TcpServer::SessionObject *TcpServer::GetSessionObject(unsigned int session) {
+        auto it = _sessionMap.find(session);
+        if (it != _sessionMap.end()) {
+            return it->second;
+        }
+        return nullptr;
     }
 
     bool TcpServer::IStreamInit(StreamHandle &handle) {
-        handle.tcpSession = ++_isession;
+        while (++_isession) {
+            if (_sessionMap.find(_isession) == _sessionMap.end()) {
+                handle.tcpSession = _isession;
+                break;
+            }
+        }
         uv_tcp_init(_handle->loop, &handle.tcpHandle);
         uv_accept(reinterpret_cast<uv_stream_t *>(_handle), reinterpret_cast<uv_stream_t *>(&handle.tcpHandle));
         return true;
     }
 
     void TcpServer::IStreamOpen(unsigned int session) {
-        _implement->IServerSessionOpen(session);
+        const auto sessionObject = GetSessionObject(session);
+        if (sessionObject) {
+            sessionObject->valid = true;
+            _implement->IServerSessionOpen(session);
+        }
     }
 
     void TcpServer::IStreamReceive(unsigned int session, const char *buf, unsigned int size) {
@@ -77,7 +142,8 @@ namespace Lcc {
     }
 
     void TcpServer::IStreamBeforeClose(unsigned int session, int err, const char *errMsg) {
-        if (_invalidMap.find(session) == _invalidMap.end()) {
+        const auto sessionObject = GetSessionObject(session);
+        if (sessionObject && sessionObject->valid) {
             _implement->IServerSessionBeforeClose(session, err, errMsg);
         }
     }
@@ -85,15 +151,11 @@ namespace Lcc {
     void TcpServer::IStreamAfterClose(unsigned int session) {
         const auto it = _sessionMap.find(session);
         if (it != _sessionMap.end()) {
-            delete it->second;
+            const auto sessionObject = it->second;
+            delete sessionObject->stream;
+            delete sessionObject;
             _sessionMap.erase(it);
             _implement->IServerSessionAfterClose(session);
-        } else {
-            const auto it2 = _invalidMap.find(session);
-            if (it2 != _invalidMap.end()) {
-                delete it2->second;
-                _invalidMap.erase(it2);
-            }
         }
     }
 
@@ -122,17 +184,31 @@ namespace Lcc {
     void TcpServer::UvNewSessionCallback(uv_stream_t *server, int status) {
         if (status == 0) {
             auto self = static_cast<TcpServer *>(uv_handle_get_data(reinterpret_cast<const uv_handle_t *>(server)));
-            auto sessionStream = new TcpStream(reinterpret_cast<StreamImplement *>(self));
+            auto sessionObject = new SessionObject;
+            sessionObject->valid = false;
+            sessionObject->stream = new TcpStream(reinterpret_cast<StreamImplement *>(self));
             for (auto creator: self->_creatorVec) {
-                sessionStream->EnableProtocolPlugin(
-                    creator->ICreatorAlloc(reinterpret_cast<ProtocolImplement *>(sessionStream)));
+                sessionObject->stream->EnableProtocolPlugin(
+                    creator->ICreatorAlloc(reinterpret_cast<ProtocolImplement *>(sessionObject->stream)));
             }
-            if (sessionStream->Startup()) {
-                self->_sessionMap[sessionStream->GetSession()] = sessionStream;
+            if (sessionObject->stream->Init()) {
+                self->_sessionMap[sessionObject->stream->GetSession()] = sessionObject;
+                if (!sessionObject->stream->Startup()) {
+                    sessionObject->stream->Shutdown();
+                }
             } else {
-                self->_invalidMap[sessionStream->GetSession()] = sessionStream;
-                sessionStream->Shutdown();
+                sessionObject->stream->Shutdown();
+                delete sessionObject;
             }
         }
+    }
+
+    void TcpServer::UvServerShutdownCallback(uv_handle_t *handle) {
+        auto self = static_cast<TcpServer *>(uv_handle_get_data(handle));
+        for (auto creator: self->_creatorVec) {
+            creator->ICreatorRelease();
+        }
+        self->_creatorVec.clear();
+        self->_implement->IServerShutdown();
     }
 }
