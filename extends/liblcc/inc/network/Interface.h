@@ -149,6 +149,59 @@ namespace Lcc {
          */
         virtual void IClientAfterDisconnect(unsigned int session) = 0;
     };
+
+    class ServerImplement {
+    public:
+        virtual ~ServerImplement() = default;
+
+        /**
+         * 初始化流处理句柄
+         * @param handle uv_tcp_t句柄
+         * @return 初始化是否成功
+         */
+        virtual bool IServerInit(uv_tcp_t *handle) = 0;
+
+        /**
+         * 服务监听状态触发
+         * @param listened 是否监听成功
+         * @param err 错误码
+         * @param errMsg 错误描述
+         */
+        virtual void IServerListenReport(bool listened, int err, const char *errMsg) = 0;
+
+        /**
+         * 服务完全关闭时触发
+         */
+        virtual void IServerShutdown() = 0;
+
+        /**
+         * 会话连接成功
+         * @param session 会话id
+         */
+        virtual void IServerSessionOpen(unsigned int session) = 0;
+
+        /**
+         * 会话收到数据
+         * @param session 会话id
+         * @param buf 接收到的流数据
+         * @param size 数据长度
+         */
+        virtual void IServerSessionReceive(unsigned int session, const char *buf, unsigned int size) = 0;
+
+        /**
+         * 会话将要断开连接时触发
+         * @param session 会话id
+         * @param err 错误码
+         * @param errMsg 错误信息
+         */
+        virtual void IServerSessionBeforeClose(unsigned int session, int err, const char *errMsg) = 0;
+
+        /**
+         * 会话已经断开连接时触发
+         * @param session 会话id
+         */
+        virtual void IServerSessionAfterClose(unsigned int session) = 0;
+    };
 }
 
 #endif //LCC_INTERFACE_H

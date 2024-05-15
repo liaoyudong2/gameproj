@@ -20,6 +20,8 @@ namespace Lcc {
         if (!_init) {
             _init = _implement->IStreamInit(_streamHandle);
             if (_init) {
+                uv_tcp_nodelay(&_streamHandle.tcpHandle, 1);
+                uv_tcp_keepalive(&_streamHandle.tcpHandle, 1, 0);
                 uv_handle_set_data(reinterpret_cast<uv_handle_t *>(&_streamHandle.tcpHandle), this);
             }
         }

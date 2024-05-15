@@ -118,12 +118,10 @@ namespace Lcc {
 
     void MbedTLSPlugin::WantFlush() {
         unsigned int l = _bufferOut.UsedSize();
-        if (l > 0) {
-            do {
-                unsigned int r = _bufferOut.Read(const_cast<char *>(_buffer.data()), _buffer.capacity());
-                GetImpl()->IProtocolWrite(ProtocolLevel::StreamWithSSL, _buffer.data(), r);
-                l -= r;
-            } while (l > 0);
+        while (l > 0) {
+            const unsigned int r = _bufferOut.Read(const_cast<char *>(_buffer.data()), _buffer.capacity());
+            GetImpl()->IProtocolWrite(ProtocolLevel::StreamWithSSL, _buffer.data(), r);
+            l -= r;
         }
     }
 

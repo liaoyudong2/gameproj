@@ -54,8 +54,7 @@ namespace Lcc {
             }
             auto req = static_cast<uv_getaddrinfo_t *>(::malloc(sizeof(uv_getaddrinfo_t)));
             uv_handle_set_data(reinterpret_cast<uv_handle_t *>(req), this);
-            uv_getaddrinfo(_handle->loop, req, TcpClient::UvAddressParseCallback, _hostAddress.host, nullptr,
-                           nullptr);
+            uv_getaddrinfo(_handle->loop, req, TcpClient::UvAddressParseCallback, _hostAddress.host, nullptr, nullptr);
         }
     }
 
@@ -85,7 +84,7 @@ namespace Lcc {
 
     void TcpClient::AddressConnectFail(int status) {
         _status = Status::ConnectFail;
-        _implement->IClientReport(_tcpStream->GetSession(), false, status != 0 ? uv_strerror(status) : nullptr);
+        _implement->IClientReport(_tcpStream->GetSession(), false, uv_strerror(status));
         _tcpStream->Shutdown();
     }
 
