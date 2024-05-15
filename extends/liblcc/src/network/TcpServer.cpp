@@ -212,6 +212,8 @@ namespace Lcc {
         for (auto creator: self->_creatorVec) {
             creator->ICreatorRelease();
         }
+        ::free(self->_handle);
+        self->_handle = nullptr;
         self->_creatorVec.clear();
         self->_implement->IServerShutdown();
     }
