@@ -3,6 +3,7 @@
 //
 #include "network/TcpClient.h"
 #include "network/plugin/MbedTLSPlugin.h"
+#include "network/plugin/WebSocketPlugin.h"
 
 namespace Lcc {
     TcpClient::TcpClient(ClientImplement *impl) : _status(Status::None),

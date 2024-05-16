@@ -8,7 +8,7 @@ namespace Lcc {
                                                             _error(0) {
         _buffer.resize(0x4000); // 16384
         _buffer.clear();
-        _errorstr.resize(512);
+        _errorstr.resize(256);
         _errorstr.clear();
     }
 

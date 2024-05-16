@@ -14,6 +14,8 @@ namespace Lcc {
         Stream,
         // 带ssl加密的流数据
         StreamWithSSL,
+        // WebSocket
+        WebSocket,
         // 应用层
         Application,
     };
