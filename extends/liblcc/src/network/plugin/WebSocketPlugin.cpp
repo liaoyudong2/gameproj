@@ -115,4 +115,38 @@ namespace Lcc {
     void WebSocketPlugin::IWebSocketWrite(const char *buf, unsigned int size) {
         _impl->IProtocolWrite(ProtocolLevel::WebSocket, buf, size);
     }
+
+    WebSocketPluginCreator::WebSocketPluginCreator(): _init(false), _opcode(WebSocketOpcode::Binary) {
+    }
+
+    void WebSocketPluginCreator::InitializeServerMode(WebSocketOpcode opcode) {
+        _init = true;
+        _opcode = opcode;
+    }
+
+    void WebSocketPluginCreator::InitializeClientMode(WebSocketOpcode opcode, const char *hostname) {
+        if (hostname) {
+            _hostname = hostname;
+        }
+        _init = true;
+        _opcode = opcode;
+    }
+
+    bool WebSocketPluginCreator::ICreatorInit() {
+        return _init;
+    }
+
+    void WebSocketPluginCreator::ICreatorRelease() {
+        delete this;
+    }
+
+    ProtocolPlugin * WebSocketPluginCreator::ICreatorAlloc(ProtocolImplement *impl) {
+        auto plugin = new WebSocketPlugin(_opcode, impl);
+        if (_hostname.empty()) {
+            plugin->InitializeServerMode();
+        } else {
+            plugin->InitializeClientMode(_hostname.c_str());
+        }
+        return plugin;
+    }
 }

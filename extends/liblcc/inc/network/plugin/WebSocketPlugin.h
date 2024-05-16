@@ -67,6 +67,36 @@ namespace Lcc {
         WebSocketOpcode _opcode;
         WebSocketProtocol _protocol;
     };
+
+    class WebSocketPluginCreator : public ProtocolPluginCreator {
+    public:
+        WebSocketPluginCreator();
+
+        /**
+         * 初始化服务端模式
+         * @param opcode 启用的操作码
+         */
+        void InitializeServerMode(WebSocketOpcode opcode);
+
+        /**
+         * 初始化客户端模式
+         * @param opcode 启用的操作码
+         * @param hostname 远端地址
+         */
+        void InitializeClientMode(WebSocketOpcode opcode, const char *hostname);
+
+    protected:
+        bool ICreatorInit() override;
+
+        void ICreatorRelease() override;
+
+        ProtocolPlugin *ICreatorAlloc(ProtocolImplement *impl) override;
+
+    private:
+        bool _init;
+        std::string _hostname;
+        WebSocketOpcode _opcode;
+    };
 }
 
 #endif //LCC_WEBSOCKETPLUGIN_H

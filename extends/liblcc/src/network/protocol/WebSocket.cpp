@@ -233,9 +233,10 @@ namespace Lcc {
                         if (header->mask) {
                             _frameReader.step = WebSocketStep::PayloadMask;
                         } else {
-                            // payload len is zero
-                            PayloadZeroDataCallback();
-                            _frameReader.step = WebSocketStep::FinOpCode;
+                            if (PayloadZeroDataCallback()) {
+                                // payload len is zero
+                                _frameReader.step = WebSocketStep::FinOpCode;
+                            }
                         }
                     }
                     break;
@@ -249,9 +250,10 @@ namespace Lcc {
                     }
                     if (assist->mask == 4) {
                         _frameReader.step = WebSocketStep::PayloadData;
-                        // payload len is zero
-                        PayloadZeroDataCallback();
-                        _frameReader.step = WebSocketStep::FinOpCode;
+                        if (PayloadZeroDataCallback()) {
+                            // payload len is zero
+                            _frameReader.step = WebSocketStep::FinOpCode;
+                        }
                     }
                     break;
                 }
@@ -311,9 +313,9 @@ namespace Lcc {
 
     void WebSocketProtocol::Close(WebSocketCode code) {
         unsigned char buf[2] = {0};
-        buf[0] = static_cast<unsigned short>(code) >> 8;
+        buf[0] = (static_cast<unsigned short>(code) >> 8);
         buf[1] = static_cast<int>(code) & 0xff;
-        _implement->IWebSocketWrite(reinterpret_cast<const char *>(buf), 2);
+        Write(reinterpret_cast<const char *>(buf), 2, WebSocketFin::Normal, WebSocketOpcode::Close);
     }
 
 #define WEBSOCKET_ERRNO_MAP(XX)                                                                                                                               \
@@ -336,7 +338,7 @@ namespace Lcc {
 
 #define WEBSOCKET_STRERROR_GEN(name, msg) case name: return msg;
 
-    inline const char *WebSocketProtocol::GetErrorDesc(WebSocketCode code) {
+    const char *WebSocketProtocol::GetErrorDesc(WebSocketCode code) {
         switch (code) {
             WEBSOCKET_ERRNO_MAP(WEBSOCKET_STRERROR_GEN)
         }
@@ -442,10 +444,12 @@ namespace Lcc {
         ::free(stream);
     }
 
-    void WebSocketProtocol::PayloadZeroDataCallback() {
+    bool WebSocketProtocol::PayloadZeroDataCallback() {
         if (_frameReader._frameHeader[static_cast<int>(_frameReader.mode)].payloadLen == 0) {
             PayLoadDataCallback(nullptr, 0, true);
+            return true;
         }
+        return false;
     }
 
     void WebSocketProtocol::PayLoadDataCallback(const char *buf, unsigned long size, bool complete) {

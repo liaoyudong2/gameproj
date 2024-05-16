@@ -121,7 +121,7 @@ namespace Lcc {
          * @param buf 数据
          * @param size 数据长度
          */
-        virtual void IWebSocketWrite(const char *buf, unsigned int size);
+        virtual void IWebSocketWrite(const char *buf, unsigned int size) = 0;
     };
 
     class WebSocketProtocol {
@@ -206,8 +206,9 @@ namespace Lcc {
 
         /**
          * 空数据的触发
+         * @return 是否确实空数据
          */
-        void PayloadZeroDataCallback();
+        bool PayloadZeroDataCallback();
 
         /**
          * 触发数据回调
