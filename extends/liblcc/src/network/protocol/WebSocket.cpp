@@ -19,6 +19,10 @@ namespace Lcc {
 
     WebSocketProtocol::~WebSocketProtocol() = default;
 
+    void WebSocketProtocol::Initialize() {
+        _implement->IWebSocketInit(_mode);
+    }
+
     void WebSocketProtocol::HandshakeRequest(const char *host, std::string &serverKey) {
         if (host) {
             std::string key;

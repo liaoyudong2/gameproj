@@ -19,9 +19,14 @@ namespace Lcc {
 
     WebSocketPlugin::~WebSocketPlugin() = default;
 
+    void WebSocketPlugin::InitializeServerMode() {
+        _protocol.Initialize();
+    }
+
     void WebSocketPlugin::InitializeClientMode(const char *host) {
         if (host) {
             _hostname = host;
+            _protocol.Initialize();
         }
     }
 
@@ -77,6 +82,11 @@ namespace Lcc {
 
     void WebSocketPlugin::IProtocolPluginRelease() {
         delete this;
+    }
+
+    void WebSocketPlugin::IWebSocketInit(WebSocketMode &mode) {
+        mode.mark = !_hostname.empty();
+        mode.opcode = _opcode;
     }
 
     void WebSocketPlugin::IWebSocketReceive(WebSocketFrameHeader &header, const char *buf, unsigned int size) {

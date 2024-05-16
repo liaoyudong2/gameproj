@@ -18,10 +18,18 @@ namespace Lcc {
 
         ~WebSocketPlugin() override;
 
+        /**
+         * 初始化服务端模式
+         */
+        void InitializeServerMode();
+
+        /**
+         * 初始化客户端模式
+         * @param host 远端地址
+         */
         void InitializeClientMode(const char *host);
 
     protected:
-
         /**
          * 关闭
          * @param code 原因
@@ -44,6 +52,8 @@ namespace Lcc {
         void IProtocolPluginRelease() override;
 
     protected:
+        void IWebSocketInit(WebSocketMode &mode) override;
+
         void IWebSocketReceive(WebSocketFrameHeader &header, const char *buf, unsigned int size) override;
 
         void IWebSocketWrite(const char *buf, unsigned int size) override;

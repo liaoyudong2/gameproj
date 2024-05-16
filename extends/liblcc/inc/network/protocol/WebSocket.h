@@ -109,6 +109,11 @@ namespace Lcc {
         ~WebSocketProtocol();
 
         /**
+         * 初始化
+         */
+        void Initialize();
+
+        /**
          * 握手请求数据和校验密钥
          * @param host 远端地址
          * @param serverKey 输出的请求对应server密钥
