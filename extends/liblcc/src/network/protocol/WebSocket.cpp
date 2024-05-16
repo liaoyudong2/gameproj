@@ -118,6 +118,176 @@ namespace Lcc {
         Write(buf, size, WebSocketFin::Normal, WebSocketOpcode::Pong);
     }
 
+    /*-------------------------------------------------------------------
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-------+-+-------------+-------------------------------+
+    |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+    |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+    |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+    | |1|2|3|       |K|             |                               |
+    +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+    |     Extended payload length continued, if payload len == 127  |
+    + - - - - - - - - - - - - - - - +-------------------------------+
+    |                               |Masking-key, if MASK set to 1  |
+    +-------------------------------+-------------------------------+
+    | Masking-key (continued)       |          Payload Data         |
+    +-------------------------------- - - - - - - - - - - - - - - - +
+    :                     Payload Data continued ...                :
+    + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
+    |                     Payload Data continued ...                |
+    +---------------------------------------------------------------+
+    1. FIN：表示这个数据是不是接收完毕，为1表示收到的数据是完整的，占1bit
+    2. RSV1～3：用于扩展，通常都为0，各占1bit
+    3. OPCODE：表示报文的类型，占4bit
+    (1). 0x00：标识一个中间数据包
+    (2). 0x01：标识一个text数据包
+    (3). 0x02：标识一个二进制数据包
+    (4). 0x03～07：保留
+    (5). 0x08：标识一个断开连接数据包
+    (6). 0x09：标识一个ping数据包
+    (7). 0x0A：标识一个pong数据包
+    (8). 0x0B～F：保留
+    4. MASK：用于表示数据是否经常掩码处理，为1时，Masking-key即存在，占1bit
+    5. Payload len：表示数据长度，即Payload Data的长度，当Payload len为0～125时，表示的值就是Payload Data的真实长度；
+    当Payload len为126时，报文其后的2个字节形成的16bits无符号整型数的值是Payload Data的真实长度（网络字节序，需转换）；
+    当Payload len为127时，报文其后的8个字节形成的64bits无符号整型数的值是Payload Data的真实长度（网络字节序，需转换）；
+    6. Masking-key：掩码，当Mask为1时存在，占4字节32bit
+    7. Payload Data：表示数据
+    -----------------------------------------------------------------------*/
+    bool WebSocketProtocol::Read(const char *buf, unsigned int size) {
+        unsigned long pos = 0;
+        unsigned long left = 0;
+        unsigned long nread = 0;
+        auto stream = reinterpret_cast<unsigned char *>(const_cast<char *>(buf));
+        WebSocketFrameHeader *header = &_frameReader._frameHeader[static_cast<int>(_frameReader.mode)];
+        WebSocketFrameAssist *assist = &_frameReader._frameAssist[static_cast<int>(_frameReader.mode)];
+        while (pos < size) {
+            const unsigned char p = buf[pos];
+            switch (_frameReader.step) {
+                case WebSocketStep::FinOpCode: {
+                    _frameReader.fin = CheckFinStatus(p);
+                    if (_frameReader.fin == WebSocketFin::Error) {
+                        return false;
+                    }
+                    if (_frameReader.fin == WebSocketFin::Normal) {
+                        _frameReader.mode = WebSocketFinMode::Normal;
+                        _frameReader._frameBuffers[static_cast<int>(_frameReader.mode)].clear();
+                    } else {
+                        _frameReader.mode = WebSocketFinMode::Fin;
+                    }
+                    header = &_frameReader._frameHeader[static_cast<int>(_frameReader.mode)];
+                    assist = &_frameReader._frameAssist[static_cast<int>(_frameReader.mode)];
+                    memset(header, 0, sizeof(WebSocketFrameHeader));
+                    memset(assist, 0, sizeof(WebSocketFrameAssist));
+                    if ((p & 0x40) || (p & 0x20) || (p & 0x10)) {
+                        // rsv not support
+                        return false;
+                    }
+                    header->fin = ((p & 0x80) == 0x80);
+                    header->opcode = static_cast<WebSocketOpcode>(p & 0xf);
+                    if ((header->opcode > WebSocketOpcode::Binary && header->opcode < WebSocketOpcode::Close) || header
+                        ->opcode > WebSocketOpcode::Pong) {
+                        // 0x03~0x07 0xb~0xf not support
+                        return false;
+                    }
+                    if (_frameReader.fin == WebSocketFin::Begin) {
+                        _frameReader._frameBuffers[static_cast<int>(_frameReader.mode)].clear();
+                        memset(&_frameReader._finHeader, 0, sizeof(WebSocketFrameHeader));
+                        _frameReader._finHeader.fin = header->fin;
+                        _frameReader._finHeader.opcode = header->opcode;
+                    }
+                    _frameReader.step = WebSocketStep::MaskPayloadLen;
+                    break;
+                }
+                case WebSocketStep::MaskPayloadLen: {
+                    assist->payload = 0;
+                    header->mask = ((p & 0x80) == 0x80);
+                    header->payloadLen = p & 0x7f;
+                    // <126  payload | =126 payload16 | =127 payload64
+                    if (header->payloadLen == 0x7e) {
+                        assist->payload = 16;
+                        header->payloadLen = 0;
+                        _frameReader.step = WebSocketStep::PayloadLength;
+                    } else if (header->payloadLen == 0x7f) {
+                        assist->payload = 64;
+                        header->payloadLen = 0;
+                        _frameReader.step = WebSocketStep::PayloadLength;
+                    } else {
+                        if (header->mask) {
+                            _frameReader.step = WebSocketStep::PayloadMask;
+                        } else {
+                            _frameReader.step = WebSocketStep::PayloadData;
+                        }
+                    }
+                    break;
+                }
+                case WebSocketStep::PayloadLength: {
+                    assist->payload -= 8;
+                    header->payloadLen += (p << assist->payload);
+                    if (assist->payload == 0) {
+                        if (_frameReader.fin != WebSocketFin::Normal) {
+                            _frameReader._finHeader.payloadLen += header->payloadLen;
+                        }
+                        _frameReader.step = WebSocketStep::PayloadData;
+                        if (header->mask) {
+                            _frameReader.step = WebSocketStep::PayloadMask;
+                        } else {
+                            // payload len is zero
+                            PayloadZeroDataCallback();
+                            _frameReader.step = WebSocketStep::FinOpCode;
+                        }
+                    }
+                    break;
+                }
+                case WebSocketStep::PayloadMask: {
+                    assist->maskIndex = 0;
+                    header->maskData[assist->mask++] = p;
+                    if (_frameReader.fin == WebSocketFin::Begin) {
+                        _frameReader._finHeader.mask = true;
+                        _frameReader._finHeader.maskData[assist->mask - 1] = p;
+                    }
+                    if (assist->mask == 4) {
+                        _frameReader.step = WebSocketStep::PayloadData;
+                        // payload len is zero
+                        PayloadZeroDataCallback();
+                        _frameReader.step = WebSocketStep::FinOpCode;
+                    }
+                    break;
+                }
+                case WebSocketStep::PayloadData: {
+                    left = size - pos;
+                    // payload mask decode
+                    if (header->mask) {
+                        unsigned long i = pos;
+                        const unsigned long loop = std::min(left, header->payloadLen);
+                        for (unsigned long n = 0; n < loop; ++n, ++i) {
+                            stream[i] = stream[i] ^ header->maskData[assist->maskIndex++ % 4];
+                        }
+                    }
+                    nread = header->payloadLen - assist->payloadRead;
+                    // payload data check length
+                    if (left >= nread) {
+                        const bool complete = _frameReader.mode == WebSocketFinMode::Normal || _frameReader.fin == WebSocketFin::End;
+                        PayLoadDataCallback(reinterpret_cast<const char *>(stream + pos), nread, complete);
+                        pos += nread;
+                        assist->payloadRead = header->payloadLen;
+                        _frameReader.step = WebSocketStep::FinOpCode;
+                    } else {
+                        pos += left;
+                        PayLoadDataCallback(reinterpret_cast<const char *>(stream + pos), left, false);
+                        pos += nread;
+                        assist->payloadRead += left;
+                    }
+                    --pos;
+                    break;
+                }
+            }
+            ++pos;
+        }
+        return true;
+    }
+
     void WebSocketProtocol::Write(const char *buf, unsigned int size) {
         static constexpr unsigned long finSize = 0x4000;
         const int loop = static_cast<int>(size / finSize + 1);
@@ -145,6 +315,34 @@ namespace Lcc {
         buf[1] = static_cast<int>(code) & 0xff;
         _implement->IWebSocketWrite(reinterpret_cast<const char *>(buf), 2);
     }
+
+#define WEBSOCKET_ERRNO_MAP(XX)                                                                                                                               \
+    XX(WebSocketCode::Normal, "正常关闭,意思是已建立连接")                                                                                                 \
+    XX(WebSocketCode::GoingAway, "表示某个端点正在离开,例如服务器关闭或浏览器已离开页面")                                                                  \
+    XX(WebSocketCode::ProtocolError, "表示端点正在终止连接到期到协议错误")                                                                                 \
+    XX(WebSocketCode::Unsupported, "示端点正在终止连接因为它收到了一种它不能接受的数据(例如:只理解文本数据的端点可以发送这个,如果它接收二进制消息)")       \
+    XX(WebSocketCode::Reserve, "预定保留")                                                                                                                 \
+    XX(WebSocketCode::NoStatus, "保留,表明连接需要状态码来表明")                                                                                           \
+    XX(WebSocketCode::AbNormal, "保留值,连接异常关闭")                                                                                                     \
+    XX(WebSocketCode::UnsupportedData, "表示端点正在终止连接,因为它接收到的消息中的数据不是与消息的类型一致(例如:非UTF-8)")                                \
+    XX(WebSocketCode::PolicyViolation, "表示端点正在终止连接,因为它收到了违反其政策的消息,不知道什么状态码时可以直接用")                                   \
+    XX(WebSocketCode::TooLarge, "示端点正在终止连接,因为它收到了一个太大的消息过程")                                                                       \
+    XX(WebSocketCode::MissingExtension, "表示端点(客户端)正在终止连接,因为它期望服务器协商一个或更多扩展,但服务器没有在响应中返回它们WebSocket握手的消息") \
+    XX(WebSocketCode::InternalError, "客户端由于遇到没有预料的情况阻止其完成请求,因此服务端断开连接")                                                      \
+    XX(WebSocketCode::ServiceRestart, "服务器由于重启而断开连接")                                                                                          \
+    XX(WebSocketCode::TryAgainLater, "服务器由于临时原因断开连接,如服务器过载因此断开一部分客户端连接")                                                    \
+    XX(WebSocketCode::Reserve2, "由WebSocket标准保留以便未来使用")                                                                                         \
+    XX(WebSocketCode::TLSHandshake, "TLS Handshake 保留。 表示连接由于无法完成 TLS 握手而关闭 (例如无法验证服务器证书)")
+
+#define WEBSOCKET_STRERROR_GEN(name, msg) case name: return msg;
+
+    inline const char *WebSocketProtocol::GetErrorDesc(WebSocketCode code) {
+        switch (code) {
+            WEBSOCKET_ERRNO_MAP(WEBSOCKET_STRERROR_GEN)
+        }
+        return "unknown code";
+    }
+#undef WEBSOCKET_STRERROR_GEN
 
     void WebSocketProtocol::Write(const char *buf, unsigned int size, WebSocketFin fin, WebSocketOpcode opcode) {
         unsigned long len = size;
@@ -244,6 +442,35 @@ namespace Lcc {
         ::free(stream);
     }
 
+    void WebSocketProtocol::PayloadZeroDataCallback() {
+        if (_frameReader._frameHeader[static_cast<int>(_frameReader.mode)].payloadLen == 0) {
+            PayLoadDataCallback(nullptr, 0, true);
+        }
+    }
+
+    void WebSocketProtocol::PayLoadDataCallback(const char *buf, unsigned long size, bool complete) {
+        std::string &buffer = _frameReader._frameBuffers[static_cast<int>(_frameReader.mode)];
+        WebSocketFrameHeader &header = _frameReader._frameHeader[static_cast<int>(_frameReader.mode)];
+        if (!complete) {
+            if (buffer.capacity() == 0) {
+                buffer.resize(0x10000);
+                buffer.clear();
+            }
+            buffer.append(buf, size);
+        } else {
+            if (!buffer.empty()) {
+                buffer.append(buf, size);
+                if (_frameReader.mode == WebSocketFinMode::Fin) {
+                    _implement->IWebSocketReceive(_frameReader._finHeader, buffer.c_str(), buffer.size());
+                } else {
+                    _implement->IWebSocketReceive(header, buffer.c_str(), buffer.size());
+                }
+            } else {
+                _implement->IWebSocketReceive(header, buf, size);
+            }
+        }
+    }
+
     void WebSocketProtocol::CreateSecWebSocketKey(std::string &key) {
         key.clear();
         std::default_random_engine eg(static_cast<unsigned int>(time(nullptr)));
@@ -276,31 +503,19 @@ namespace Lcc {
         }
     }
 
-#define WEBSOCKET_ERRNO_MAP(XX)                                                                                                                               \
-    XX(WebSocketCode::Normal, "正常关闭,意思是已建立连接")                                                                                                 \
-    XX(WebSocketCode::GoingAway, "表示某个端点正在离开,例如服务器关闭或浏览器已离开页面")                                                                  \
-    XX(WebSocketCode::ProtocolError, "表示端点正在终止连接到期到协议错误")                                                                                 \
-    XX(WebSocketCode::Unsupported, "示端点正在终止连接因为它收到了一种它不能接受的数据(例如:只理解文本数据的端点可以发送这个,如果它接收二进制消息)")       \
-    XX(WebSocketCode::Reserve, "预定保留")                                                                                                                 \
-    XX(WebSocketCode::NoStatus, "保留,表明连接需要状态码来表明")                                                                                           \
-    XX(WebSocketCode::AbNormal, "保留值,连接异常关闭")                                                                                                     \
-    XX(WebSocketCode::UnsupportedData, "表示端点正在终止连接,因为它接收到的消息中的数据不是与消息的类型一致(例如:非UTF-8)")                                \
-    XX(WebSocketCode::PolicyViolation, "表示端点正在终止连接,因为它收到了违反其政策的消息,不知道什么状态码时可以直接用")                                   \
-    XX(WebSocketCode::TooLarge, "示端点正在终止连接,因为它收到了一个太大的消息过程")                                                                       \
-    XX(WebSocketCode::MissingExtension, "表示端点(客户端)正在终止连接,因为它期望服务器协商一个或更多扩展,但服务器没有在响应中返回它们WebSocket握手的消息") \
-    XX(WebSocketCode::InternalError, "客户端由于遇到没有预料的情况阻止其完成请求,因此服务端断开连接")                                                      \
-    XX(WebSocketCode::ServiceRestart, "服务器由于重启而断开连接")                                                                                          \
-    XX(WebSocketCode::TryAgainLater, "服务器由于临时原因断开连接,如服务器过载因此断开一部分客户端连接")                                                    \
-    XX(WebSocketCode::Reserve2, "由WebSocket标准保留以便未来使用")                                                                                         \
-    XX(WebSocketCode::TLSHandshake, "TLS Handshake 保留。 表示连接由于无法完成 TLS 握手而关闭 (例如无法验证服务器证书)")
-
-#define WEBSOCKET_STRERROR_GEN(name, msg) case name: return msg;
-
-    inline const char *WebSocketProtocol::GetErrorDesc(WebSocketCode code) {
-        switch (code) {
-            WEBSOCKET_ERRNO_MAP(WEBSOCKET_STRERROR_GEN)
+    WebSocketFin WebSocketProtocol::CheckFinStatus(unsigned char p) {
+        const bool fin = (p & 0x80) == 0x80;
+        const unsigned char opcode = (p & 0xf);
+        if (fin == 0 && opcode != 0) {
+            return WebSocketFin::Begin;
+        } else if (fin == 0 && opcode == 0) {
+            return WebSocketFin::Continue;
+        } else if (fin == 1 && opcode == 0) {
+            return WebSocketFin::End;
+        } else if (fin == 1 && opcode != 0) {
+            return WebSocketFin::Normal;
+        } else {
+            return WebSocketFin::Error;
         }
-        return "unknown code";
     }
-#undef WEBSOCKET_STRERROR_GEN
 }

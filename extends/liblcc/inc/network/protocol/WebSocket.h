@@ -25,6 +25,11 @@ namespace Lcc {
         Error,
     };
 
+    enum class WebSocketFinMode {
+        Normal,
+        Fin,
+    };
+
     enum class WebSocketStep {
         // fin opcode byte
         FinOpCode,
@@ -49,6 +54,23 @@ namespace Lcc {
         WebSocketOpcode opcode;
         unsigned long payloadLen;
         unsigned char maskData[4];
+    };
+
+    struct WebSocketFrameAssist {
+        unsigned char payload;
+        unsigned char mask;
+        unsigned long maskIndex;
+        unsigned long payloadRead;
+    };
+
+    struct WebSocketFrameReader {
+        WebSocketFinMode mode;
+        WebSocketFin fin;
+        WebSocketStep step;
+        std::string _frameBuffers[2];
+        WebSocketFrameHeader _finHeader;
+        WebSocketFrameHeader _frameHeader[2];
+        WebSocketFrameAssist _frameAssist[2];
     };
 
     enum class WebSocketCode {
@@ -145,6 +167,14 @@ namespace Lcc {
         void Pong(const char *buf, unsigned int size);
 
         /**
+        * 读取帧数据
+        * @param buf 输入数据流
+        * @param size 数据长度
+        * @return 是否读取正常
+        */
+        bool Read(const char *buf, unsigned int size);
+
+        /**
          * 写数据
          * @param buf 输入数据流
          * @param size 数据长度
@@ -174,6 +204,19 @@ namespace Lcc {
          */
         void Write(const char *buf, unsigned int size, WebSocketFin fin, WebSocketOpcode opcode);
 
+        /**
+         * 空数据的触发
+         */
+        void PayloadZeroDataCallback();
+
+        /**
+         * 触发数据回调
+         * @param buf 数据
+         * @param size 数据长度
+         * @param complete 是否完全获取
+         */
+        void PayLoadDataCallback(const char *buf, unsigned long size, bool complete);
+
     protected:
         /**
          * 生成WebSocket密钥
@@ -188,9 +231,17 @@ namespace Lcc {
          */
         static void ParserHeaderMap(std::istringstream &ss, std::map<std::string, std::string> &keyMap);
 
+        /**
+         * 检查字节对应的fin状态
+         * @param p 字节
+         * @return 返回fin状态
+         */
+        static WebSocketFin CheckFinStatus(unsigned char p);
+
     private:
         WebSocketMode _mode;
         WebSocketImplement *_implement;
+        WebSocketFrameReader _frameReader;
     };
 }
 

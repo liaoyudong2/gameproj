@@ -46,7 +46,7 @@ namespace Lcc {
     }
 
     bool WebSocketPlugin::IProtocolPluginOpen() {
-        if (!_hostname.empty() && !-_handshaked) {
+        if (!_hostname.empty() && !_handshaked) {
             _protocol.HandshakeRequest(_hostname.c_str(), _serverKey);
         }
         return true;
@@ -68,6 +68,10 @@ namespace Lcc {
             _handshaked = true;
             _impl->IProtocolOpen(ProtocolLevel::WebSocket);
         } else {
+            if (!_protocol.Read(buf, size)) {
+                ImplementClose(WebSocketCode::AbNormal);
+                return false;
+            }
         }
         return true;
     }
