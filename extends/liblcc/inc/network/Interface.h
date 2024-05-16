@@ -121,33 +121,29 @@ namespace Lcc {
 
         /**
          * 连接成功/失败时触发
-         * @param session 连接会话
          * @param connected 是否连接成功
          * @param err 失败原因
          */
-        virtual void IClientReport(unsigned int session, bool connected, const char *err) = 0;
+        virtual void IClientReport(bool connected, const char *err) = 0;
 
         /**
          * 收到数据时触发
-         * @param session 连接会话
          * @param buf 接收到的流数据
          * @param size 数据长度
          */
-        virtual void IClientReceive(unsigned int session, const char *buf, unsigned int size) = 0;
+        virtual void IClientReceive(const char *buf, unsigned int size) = 0;
 
         /**
          * 将要断开连接时触发
-         * @param session 连接会话
          * @param err 错误码
          * @param errMsg 错误信息
          */
-        virtual void IClientBeforeDisconnect(unsigned int session, int err, const char *errMsg) = 0;
+        virtual void IClientBeforeDisconnect(int err, const char *errMsg) = 0;
 
         /**
          * 连接完全断开连接时触发
-         * @param session 连接会话
          */
-        virtual void IClientAfterDisconnect(unsigned int session) = 0;
+        virtual void IClientAfterDisconnect() = 0;
     };
 
     class ServerImplement {

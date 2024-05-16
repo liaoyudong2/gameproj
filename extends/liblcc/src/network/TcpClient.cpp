@@ -84,7 +84,7 @@ namespace Lcc {
 
     void TcpClient::AddressConnectFail(int status) {
         _status = Status::ConnectFail;
-        _implement->IClientReport(_tcpStream->GetSession(), false, uv_strerror(status));
+        _implement->IClientReport(false, uv_strerror(status));
         _tcpStream->Shutdown();
     }
 
@@ -97,16 +97,16 @@ namespace Lcc {
     }
 
     void TcpClient::IStreamOpen(unsigned int session) {
-        _implement->IClientReport(session, true, nullptr);
+        _implement->IClientReport(true, nullptr);
     }
 
     void TcpClient::IStreamReceive(unsigned int session, const char *buf, unsigned int size) {
-        _implement->IClientReceive(session, buf, size);
+        _implement->IClientReceive(buf, size);
     }
 
     void TcpClient::IStreamBeforeClose(unsigned int session, int err, const char *errMsg) {
         if (_status == Status::Connected) {
-            _implement->IClientBeforeDisconnect(session, err, errMsg);
+            _implement->IClientBeforeDisconnect(err, errMsg);
         }
     }
 
@@ -119,7 +119,7 @@ namespace Lcc {
         }
         _creatorVec.clear();
         if (_status == Status::Connected) {
-            _implement->IClientAfterDisconnect(session);
+            _implement->IClientAfterDisconnect();
         }
         _status = Status::None;
     }

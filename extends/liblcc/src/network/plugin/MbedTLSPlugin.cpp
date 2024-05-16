@@ -140,7 +140,7 @@ namespace Lcc {
 
     int MbedTLSPlugin::MbedTLSRecvCallback(void *ctx, unsigned char *buf, size_t size) {
         auto plugin = static_cast<MbedTLSPlugin *>(ctx);
-        int r = plugin->_bufferIn.Read(reinterpret_cast<char *>(buf), size);
+        const int r = static_cast<int>(plugin->_bufferIn.Read(reinterpret_cast<char *>(buf), size));
         if (r > 0) {
             return r;
         }
@@ -149,7 +149,7 @@ namespace Lcc {
 
     int MbedTLSPlugin::MbedTLSSendCallback(void *ctx, const unsigned char *buf, size_t size) {
         auto plugin = static_cast<MbedTLSPlugin *>(ctx);
-        int r = plugin->_bufferOut.Write(reinterpret_cast<const char *>(buf), size);
+        const int r = static_cast<int>(plugin->_bufferOut.Write(reinterpret_cast<const char *>(buf), size));
         if (r > 0) {
             return r;
         }
