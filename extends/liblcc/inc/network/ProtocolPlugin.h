@@ -15,8 +15,8 @@ namespace Lcc {
 
         virtual ~ProtocolPlugin() = default;
 
-        ProtocolImplement *GetImpl() { return _impl; }
         ProtocolLevel GetLevel() const { return _level; }
+        ProtocolImplement *GetImpl() const { return _impl; }
 
     public:
         /**
@@ -70,6 +70,12 @@ namespace Lcc {
     class ProtocolPluginCreator {
     public:
         virtual ~ProtocolPluginCreator() = default;
+
+        /**
+         * 获取插件构造器是否初始化完成
+         * @return 是否初始化完成
+         */
+        virtual bool ICreatorInit() = 0;
 
         /**
          * 协议插件创造器释放

@@ -28,7 +28,7 @@ namespace Lcc {
     }
 
     void TcpClient::Enable(ProtocolPluginCreator *creator) {
-        if (creator) {
+        if (creator && creator->ICreatorInit()) {
             _creatorVec.emplace_back(creator);
         }
     }

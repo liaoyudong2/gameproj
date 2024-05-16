@@ -29,7 +29,7 @@ namespace Lcc {
     }
 
     void TcpServer::Enable(ProtocolPluginCreator *creator) {
-        if (creator) {
+        if (creator && creator->ICreatorInit()) {
             _creatorVec.emplace_back(creator);
         }
     }
@@ -49,14 +49,6 @@ namespace Lcc {
 
     const Utils::HostAddress &TcpServer::GetListenAddress() const {
         return _hostAddress;
-    }
-
-    TcpStream *TcpServer::GetSessionStream(unsigned int session) {
-        const auto sessionObject = GetSessionObject(session);
-        if (sessionObject && sessionObject->valid) {
-            return sessionObject->stream;
-        }
-        return nullptr;
     }
 
     void TcpServer::SessionWrite(unsigned int session, const char *buf, unsigned int size) {
@@ -107,6 +99,14 @@ namespace Lcc {
         _status = Status::ListenFail;
         _implement->IServerListenReport(false, status, _errdesc.c_str());
         Shutdown();
+    }
+
+    TcpStream *TcpServer::GetSessionStream(unsigned int session) {
+        const auto sessionObject = GetSessionObject(session);
+        if (sessionObject && sessionObject->valid) {
+            return sessionObject->stream;
+        }
+        return nullptr;
     }
 
     TcpServer::SessionObject *TcpServer::GetSessionObject(unsigned int session) {

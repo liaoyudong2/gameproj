@@ -66,13 +66,6 @@ namespace Lcc {
         const Utils::HostAddress &GetListenAddress() const;
 
         /**
-         * 查询会话对象
-         * @param session 会话id
-         * @return 查询到的会话对象
-         */
-        TcpStream *GetSessionStream(unsigned int session);
-
-        /**
          * 向会话写数据
          * @param session 会话id
          * @param buf 数据
@@ -96,6 +89,13 @@ namespace Lcc {
          * @param status 失败错误码
          */
         void AddressListenFail(int status);
+
+        /**
+         * 查询会话对象
+         * @param session 会话id
+         * @return 查询到的会话对象
+         */
+        TcpStream *GetSessionStream(unsigned int session);
 
         /**
          * 获取会话object

@@ -71,11 +71,14 @@ namespace Lcc {
         bool InitializeServerMode(const char *cert, const char *key, const char *password);
 
     protected:
+        bool ICreatorInit() override;
+
         void ICreatorRelease() override;
 
         ProtocolPlugin *ICreatorAlloc(ProtocolImplement *impl) override;
 
     private:
+        bool _init;
         std::string _host;
         std::string _caroot;
         Protocol::MbedTLS *_mbedtls;

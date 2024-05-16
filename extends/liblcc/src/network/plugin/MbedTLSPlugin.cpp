@@ -156,7 +156,7 @@ namespace Lcc {
         return MBEDTLS_ERR_SSL_WANT_WRITE;
     }
 
-    MbedTLSPluginCreator::MbedTLSPluginCreator(): _mbedtls(nullptr) {
+    MbedTLSPluginCreator::MbedTLSPluginCreator(): _init(false), _mbedtls(nullptr) {
     }
 
     MbedTLSPluginCreator::~MbedTLSPluginCreator() {
@@ -174,6 +174,7 @@ namespace Lcc {
         if (caroot) {
             _caroot.assign(caroot);
         }
+        _init = true;
         return true;
     }
 
@@ -181,6 +182,7 @@ namespace Lcc {
         if (!_mbedtls) {
             _mbedtls = new Protocol::MbedTLS;
             if (_mbedtls->InitializeForServer(cert, key, password)) {
+                _init = true;
                 return true;
             }
             _mbedtls->Release();
@@ -188,6 +190,10 @@ namespace Lcc {
             _mbedtls = nullptr;
         }
         return false;
+    }
+
+    bool MbedTLSPluginCreator::ICreatorInit() {
+        return _init;
     }
 
     void MbedTLSPluginCreator::ICreatorRelease() {
