@@ -6,9 +6,9 @@
 
 uv_loop_t *g_loop = nullptr;
 
-class TcpServer final : public Lcc::TcpClient, public Lcc::ClientImplement {
+class WebSocketClient final : public Lcc::TcpClient, public Lcc::ClientImplement {
 public:
-    explicit TcpServer() : Lcc::TcpClient(this) {
+    explicit WebSocketClient() : Lcc::TcpClient(this) {
     }
 
     inline bool IClientInit(Lcc::StreamHandle &handle) override {
@@ -46,7 +46,7 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-    TcpServer client;
+    WebSocketClient client;
 
     g_loop = static_cast<uv_loop_t *>(::malloc(sizeof(uv_loop_t)));
     uv_loop_init(g_loop);

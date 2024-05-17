@@ -7,9 +7,9 @@
 
 uv_loop_t *g_loop = nullptr;
 
-class TcpServer final : public Lcc::TcpServer, public Lcc::ServerImplement {
+class WebSocketServer final : public Lcc::TcpServer, public Lcc::ServerImplement {
 public:
-    explicit TcpServer() : Lcc::TcpServer(this) {
+    explicit WebSocketServer() : Lcc::TcpServer(this) {
     }
 
     bool IServerInit(uv_tcp_t *handle) override {
@@ -57,7 +57,7 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-    TcpServer server;
+    WebSocketServer server;
 
     g_loop = static_cast<uv_loop_t *>(::malloc(sizeof(uv_loop_t)));
     uv_loop_init(g_loop);
