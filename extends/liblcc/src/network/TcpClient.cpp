@@ -10,6 +10,7 @@ namespace Lcc {
                                                   _handle(nullptr),
                                                   _tcpStream(nullptr),
                                                   _implement(impl),
+                                                  _opcode(WebSocketOpcode::Text),
                                                   _hostAddress() {
     }
 
@@ -32,6 +33,10 @@ namespace Lcc {
         if (creator && creator->ICreatorInit()) {
             _creatorVec.emplace_back(creator);
         }
+    }
+
+    void TcpClient::EnableWebSocketOpcode(WebSocketOpcode opcode) {
+        _opcode = opcode;
     }
 
     void TcpClient::Write(const char *buf, unsigned int size) {
@@ -154,11 +159,15 @@ namespace Lcc {
             self->AddressConnectFail(status);
         } else {
             self->_status = Status::Connected;
-            // TODO WebSocket
+            if (self->_hostAddress.protocol == Utils::HostProtocol::Websocket) {
+                auto websocket = new WebSocketPluginCreator;
+                websocket->InitializeClientMode(self->_opcode, self->_hostAddress.host);
+                self->_creatorVec.emplace_back(websocket);
+            }
             if (self->_hostAddress.ssl) {
-                auto creator = new MbedTLSPluginCreator;
-                creator->InitializeClientMode(self->_hostAddress.host, nullptr);
-                self->_creatorVec.emplace_back(creator);
+                auto ssl = new MbedTLSPluginCreator;
+                ssl->InitializeClientMode(self->_hostAddress.host, nullptr);
+                self->_creatorVec.emplace_back(ssl);
             }
             for (auto creator: self->_creatorVec) {
                 self->_tcpStream->EnableProtocolPlugin(

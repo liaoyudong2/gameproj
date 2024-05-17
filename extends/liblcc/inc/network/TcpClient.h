@@ -7,6 +7,7 @@
 
 #include "utils/Address.h"
 #include "network/TcpStream.h"
+#include "protocol/WebSocket.h"
 
 namespace Lcc {
     class TcpClient : public StreamImplement {
@@ -40,6 +41,12 @@ namespace Lcc {
          * @param creator 协议插件创造器
          */
         void Enable(ProtocolPluginCreator *creator);
+
+        /**
+         * 启用WebSocket的操作码模式
+         * @param opcode 操作码
+         */
+        void EnableWebSocketOpcode(WebSocketOpcode opcode);
 
         /**
          * 向流写数据
@@ -94,6 +101,7 @@ namespace Lcc {
         ClientImplement *_implement;
 
     private:
+        WebSocketOpcode _opcode;
         Utils::HostAddress _hostAddress;
         std::vector<ProtocolPluginCreator *> _creatorVec;
     };

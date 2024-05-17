@@ -29,4 +29,5 @@ endif ()
 
 add_subdirectory(${TESTS_DIR}/TcpClient)
 add_subdirectory(${TESTS_DIR}/TcpServer)
+add_subdirectory(${TESTS_DIR}/WebSocketClient)
 add_subdirectory(${TESTS_DIR}/WebSocketServer)

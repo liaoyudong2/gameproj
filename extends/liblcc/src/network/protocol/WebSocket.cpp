@@ -15,6 +15,12 @@ namespace Lcc {
                                                                          .mark = false, .opcode = WebSocketOpcode::Text
                                                                      }),
                                                                      _implement(impl) {
+        _frameReader.fin = WebSocketFin::Normal;
+        _frameReader.mode = WebSocketFinMode::Normal;
+        _frameReader.step = WebSocketStep::FinOpCode;
+        memset(&_frameReader._finHeader, 0, sizeof(_frameReader._finHeader));
+        memset(_frameReader._frameAssist, 0, sizeof(_frameReader._frameAssist));
+        memset(_frameReader._frameHeader, 0, sizeof(_frameReader._frameHeader));
     }
 
     WebSocketProtocol::~WebSocketProtocol() = default;
