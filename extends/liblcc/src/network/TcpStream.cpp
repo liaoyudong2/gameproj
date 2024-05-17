@@ -44,12 +44,7 @@ namespace Lcc {
 
     void TcpStream::Shutdown() {
         if (_streamHandle.IsActive()) {
-            auto req = static_cast<uv_shutdown_t *>(::malloc(sizeof(uv_shutdown_t)));
-            uv_handle_set_data(reinterpret_cast<uv_handle_t *>(req), this);
-            if (uv_shutdown(req, reinterpret_cast<uv_stream_t *>(&_streamHandle.tcpHandle),
-                            TcpStream::UvShutdownCallback)) {
-                ::free(req);
-            }
+            IProtocolClose(ProtocolLevel::Application);
         }
     }
 
@@ -122,6 +117,15 @@ namespace Lcc {
         return nullptr;
     }
 
+    void TcpStream::StreamShutdown() {
+        auto req = static_cast<uv_shutdown_t *>(::malloc(sizeof(uv_shutdown_t)));
+        uv_handle_set_data(reinterpret_cast<uv_handle_t *>(req), this);
+        if (uv_shutdown(req, reinterpret_cast<uv_stream_t *>(&_streamHandle.tcpHandle),
+                        TcpStream::UvShutdownCallback)) {
+            ::free(req);
+        }
+    }
+
     void TcpStream::IProtocolOpen(ProtocolLevel streamLevel) {
         auto plugin = GetLevelPlugin(streamLevel);
         if (plugin) {
@@ -169,11 +173,11 @@ namespace Lcc {
     }
 
     void TcpStream::IProtocolClose(ProtocolLevel streamLevel) {
-        auto plugin = GetLevelPlugin(streamLevel);
+        auto plugin = GetLevelPlugin(streamLevel, true);
         if (plugin) {
             plugin->IProtocolPluginClose();
         } else {
-            Shutdown();
+            StreamShutdown();
         }
     }
 

@@ -86,6 +86,11 @@ namespace Lcc {
          */
         ProtocolPlugin *GetLevelPlugin(ProtocolLevel level, bool desc = false);
 
+        /**
+         * 流关闭
+         */
+        void StreamShutdown();
+
     protected:
         void IProtocolOpen(ProtocolLevel streamLevel) override;
 
