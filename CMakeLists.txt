@@ -14,6 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # variable
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+set(SERVER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/server)
 set(EXTENDS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extends)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bin)
@@ -25,9 +26,13 @@ link_directories(/usr/lib64/mysql/)
 if (EXISTS "${EXTENDS_DIR}/liblcc/src")
     add_subdirectory(${EXTENDS_DIR}/liblcc)
 endif ()
+add_subdirectory(${EXTENDS_DIR}/libaco)
 
 
+add_subdirectory(${TESTS_DIR}/Thread)
 add_subdirectory(${TESTS_DIR}/TcpClient)
 add_subdirectory(${TESTS_DIR}/TcpServer)
 add_subdirectory(${TESTS_DIR}/WebSocketClient)
 add_subdirectory(${TESTS_DIR}/WebSocketServer)
+
+add_subdirectory(${SERVER_DIR}/login)
