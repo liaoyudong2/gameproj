@@ -31,6 +31,10 @@ namespace Lcc {
         }
     }
 
+    bool Thread::Running() const {
+        return _status == Status::Running && !_shutdown;
+    }
+
     bool Thread::QueueMessage(void *message) {
         if (_status == Status::Running && !_shutdown) {
             _messages.enqueue(message);

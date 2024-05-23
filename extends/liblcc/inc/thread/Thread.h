@@ -34,6 +34,12 @@ namespace Lcc {
         void Shutdown();
 
         /**
+         * 获取是否正在运行
+         * @return 是否运行中
+         */
+        bool Running() const;
+
+        /**
          * 尝试压入消息队列
          * @param message 消息
          * @return 是否压入队列成功
