@@ -40,7 +40,7 @@ public:
         const char *request =
                 "POST / HTTP/1.1\r\nconnection: keep-alive\r\nHost: www.baidu.com\r\nuser-agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36\r\ncontent-type: text/html\r\nContent-Length: 0\r\n\r\n";
         SessionWrite(session, request, strlen(request));
-        // Shutdown();
+        Shutdown();
     }
 
     void IServerSessionBeforeClose(unsigned int session, int err, const char *errMsg) override {

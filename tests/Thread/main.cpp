@@ -3,6 +3,9 @@
 //
 #include <iostream>
 #include <thread/Thread.h>
+#include <thread/Application.h>
+
+char message[] = "1234567890";
 
 class Thread : public Lcc::Thread {
 public:
@@ -23,22 +26,40 @@ protected:
     }
 };
 
-std::atomic<bool> g_threadrun;
+class Application : public Lcc::Application {
+public:
+    ~Application() override = default;
+
+protected:
+    inline bool IInit() override {
+        std::cout << "Application::IInit" << std::endl;
+        return _thread.Startup(10);
+    }
+
+    inline void IRun() override {
+        std::cout << "Application::IRun" << std::endl;
+        _thread.QueueMessage(message);
+    }
+
+    inline void IShutdown() override {
+        std::cout << "Application::IShutdown" << std::endl;
+        _thread.Shutdown();
+    }
+
+private:
+    Thread _thread;
+};
+
+Application app;
 
 void Exit(int sig) {
-    g_threadrun = false;
+    app.Shutdown();
 }
-
-char message[] = "1234567890";
 
 int main(int argc, char *argv[]) {
     signal(SIGINT, Exit);
     signal(SIGTERM, Exit);
 
-    Thread thread;
-    g_threadrun = thread.Startup(10);
-    while (g_threadrun) {}
-    thread.QueueMessage(message);
-    thread.Shutdown();
+    app.Run(1000);
     return 0;
 }
