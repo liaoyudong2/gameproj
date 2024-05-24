@@ -119,12 +119,10 @@ namespace Lcc {
 
     bool TcpServer::IStreamInit(StreamHandle &handle) {
         unsigned int session = 0;
-        while (session == 0) {
-            while (++_isession) {
-                if (_sessionMap.find(_isession) == _sessionMap.end()) {
-                    session = _isession;
-                    break;
-                }
+        while (++_isession) {
+            if (_isession > 0 && _sessionMap.find(_isession) == _sessionMap.end()) {
+                session = _isession;
+                break;
             }
         }
         handle.tcpSession = session;

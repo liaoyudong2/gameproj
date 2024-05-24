@@ -5,7 +5,6 @@
 #ifndef LCC_THREAD_H
 #define LCC_THREAD_H
 
-#include <atomic>
 #include "uv.h"
 #include "concurrentqueue.h"
 
@@ -23,10 +22,9 @@ namespace Lcc {
 
         /**
          * 启动线程
-         * @param sleepms 休眠毫秒 0不循环 >0休眠时间
          * @return 是否启动线程成功
          */
-        bool Startup(unsigned int sleepms);
+        bool Startup();
 
         /**
          * 关闭线程
@@ -48,9 +46,14 @@ namespace Lcc {
 
     protected:
         /**
+         * 事件驱动初始化
+         */
+        void EventLoopInit();
+
+        /**
          * 事件循环派发
          */
-        void LoopQueueCommand();
+        void EventLoopQueueCommand();
 
     protected:
         /**
@@ -70,16 +73,29 @@ namespace Lcc {
          */
         virtual void IShutdown() = 0;
 
+        /**
+         * 返回uv loop句柄
+         * @return 事件loop句柄
+         */
+        uv_loop_t *GetEventLoop();
+
     protected:
         static void UvThreadRunMain(void *arg);
 
+        static void UvThreadShutdown(uv_handle_t *handle);
+
+        static void UvThreadEventTrigger(uv_async_t *async);
+
+        static void UvThreadShutdownTrigger(uv_async_t *async);
+
     private:
         int _error;
+        Status _status;
         uv_thread_t _thread;
-        unsigned int _sleepms;
-        uv_barrier_t _waitBarrier;
-        std::atomic<Status> _status;
-        std::atomic<bool> _shutdown;
+        uv_loop_t _threadLoop;
+        uv_barrier_t _waitSignal;
+        uv_async_t _eventTrigger;
+        uv_async_t _shutdownTrigger;
         moodycamel::ConcurrentQueue<void *> _messages;
     };
 }

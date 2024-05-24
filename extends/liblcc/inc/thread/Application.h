@@ -14,9 +14,11 @@ namespace Lcc {
 
         virtual ~Application();
 
-        void Run(unsigned int sleepms);
+        void Run();
 
         void Shutdown();
+
+        void Sleep(unsigned int ms);
 
     protected:
         virtual bool IInit() = 0;

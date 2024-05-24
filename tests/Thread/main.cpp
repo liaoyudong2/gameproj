@@ -33,17 +33,18 @@ public:
 protected:
     inline bool IInit() override {
         std::cout << "Application::IInit" << std::endl;
-        return _thread.Startup(10);
+        return _thread.Startup();
     }
 
     inline void IRun() override {
         std::cout << "Application::IRun" << std::endl;
         _thread.QueueMessage(message);
+        Sleep(1000);
     }
 
     inline void IShutdown() override {
-        std::cout << "Application::IShutdown" << std::endl;
         _thread.Shutdown();
+        std::cout << "Application::IShutdown" << std::endl;
     }
 
 private:
@@ -60,6 +61,6 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, Exit);
     signal(SIGTERM, Exit);
 
-    app.Run(1000);
+    app.Run();
     return 0;
 }

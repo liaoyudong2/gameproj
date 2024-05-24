@@ -5,19 +5,17 @@
 #include "thread/Application.h"
 
 namespace Lcc {
-
     Application::Application(): _running(false) {
     }
 
     Application::~Application() = default;
 
-    void Application::Run(unsigned int sleepms) {
-        if (!_running && sleepms > 0) {
+    void Application::Run() {
+        if (!_running) {
             if (IInit()) {
                 _running = true;
                 while (_running) {
                     IRun();
-                    uv_sleep(sleepms);
                 }
             }
             IShutdown();
@@ -26,5 +24,9 @@ namespace Lcc {
 
     void Application::Shutdown() {
         _running = false;
+    }
+
+    void Application::Sleep(unsigned int ms) {
+        uv_sleep(ms);
     }
 }
